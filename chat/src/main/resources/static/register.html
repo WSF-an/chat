@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>注册</title>
+    <!-- 引入 Element UI 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4cc9f0;
+            --border-radius: 10px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            background-size: cover;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .register-wrapper {
+            width: 100%;
+            max-width: 480px;
+            animation: fadeInUp 0.6s ease;
+        }
+
+        .box-card {
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: none;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+        }
+
+        .box-card h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 28px;
+        }
+
+        .demo-ruleForm {
+            padding: 0 20px;
+        }
+
+        .el-form-item__label {
+            color: var(--dark-color);
+            font-weight: 500;
+        }
+
+        .el-input__inner {
+            border-radius: 8px;
+            height: 45px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .el-input__inner:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+        }
+
+        .password-strength {
+            margin-top: 5px;
+            height: 4px;
+            background: #f0f0f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .btnGroup {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding: 0 20px 20px;
+        }
+
+        .el-button {
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.3s;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .el-button--primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .el-button--primary:hover {
+            background: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .el-button:not(.el-button--primary) {
+            color: var(--dark-color);
+            border-color: #e0e0e0;
+        }
+
+        .el-button:not(.el-button--primary):hover {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            .box-card {
+                width: 100%;
+            }
+
+            .btnGroup {
+                flex-direction: column;
+            }
+
+            .el-button {
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="register-wrapper">
+        <div id="app"></div>
+        <p class="footer-text">已有账号？<a href="login.html" style="color: white; text-decoration: underline;">立即登录</a></p>
+    </div>
+</div>
+
+<!-- 引入 Vue -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<!-- 引入 Element UI -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+    // 定义注册组件
+    Vue.component('demo-ruleForm', {
+        template: `
+        <el-card class="box-card">
+          <h2>注册</h2>
+          <el-form
+            :model="ruleForm"
+            status-icon
+            :rules="rules"
+            ref="ruleForm"
+            label-position="left"
+            label-width="90px"
+            class="demo-ruleForm"
+          >
+
+            <el-form-item label="用户名" prop="uname">
+              <el-input v-model="ruleForm.uname" autocomplete="new-password"></el-input>
+            </el-form-item>
+            <el-form-item label="密码" prop="pass">
+              <el-input
+                type="password"
+                v-model="ruleForm.pass"
+                autocomplete="new-password"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="确认密码" prop="password">
+              <el-input
+                type="password"
+                v-model="ruleForm.password"
+                autocomplete="new-password"
+              ></el-input>
+            </el-form-item>
+          </el-form>
+          <div class="btnGroup">
+            <el-button type="primary" @click="submitForm('ruleForm')" v-loading="loading">提交</el-button>
+            <el-button @click="resetForm('ruleForm')">重置</el-button>
+            <el-button @click="goBack">返回</el-button>
+          </div>
+        </el-card>
+      `,
+        data() {
+            var validatePass = (rule, value, callback) => {
+                if (value === "") {
+                    callback(new Error("请输入密码"));
+                } else {
+                    if (this.ruleForm.checkPass !== "") {
+                        this.$refs.ruleForm.validateField("checkPass");
+                    }
+                    callback();
+                }
+            };
+            var validatePass2 = (rule, value, callback) => {
+                if (value === "") {
+                    callback(new Error("请再次输入密码"));
+                } else if (value !== this.ruleForm.pass) {
+                    callback(new Error("两次输入密码不一致!"));
+                } else {
+                    callback();
+                }
+            };
+            return {
+                ruleForm: {
+                    uname: "",
+                    pass: "",
+                    password: "",
+                },
+                rules: {
+                    uname: [
+                        { required: true, message: "用户名不能为空！", trigger: "blur" }
+                    ],
+                    pass: [{ required: true, validator: validatePass, trigger: "blur" }],
+                    password: [
+                        { required: true, validator: validatePass2, trigger: "blur" },
+                    ],
+                },
+                loading: false, // 是否显示加载动画
+            }
+        },
+        methods: {
+            submitForm(formName) {
+                this.$refs[formName].validate((valid) => {
+                    this.loading = true;
+                    if (valid) {
+                        axios({
+                            url: "/api/user/register",
+                            method: "post",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            data: {
+                                userAccount: this.ruleForm.uname,
+                                userPassword: this.ruleForm.password,
+                            },
+                        }).then((res) => {
+                            if (res.data.startsWith("注册成功")) {
+                                this.$message({
+                                    message: res.data,
+                                    type: "success",
+                                });
+                                setTimeout(() => {
+                                    window.location.href = "login.html"; // 注册成功后跳转
+                                }, 1000);
+                            } else {
+                                this.$message({
+                                    message: res.data,
+                                    type: "warning",
+                                });
+                            }
+                            this.loading = false;
+                        }).catch((error) => {
+                            this.$message({
+                                message: error.message,
+                                type: "error",
+                            });
+                            this.loading = false;
+                        });
+                    } else {
+                        console.log("error submit!!");
+                        this.loading = false;
+                        return false;
+                    }
+                });
+            },
+            resetForm(formName) {
+                this.$refs[formName].resetFields();
+            },
+            // 返回登录页面
+            goBack() {
+                window.location.href = "login.html";
+            },
+        },
+    });
+
+    // 创建 Vue 实例，挂载组件
+    new Vue({
+        el: '#app',
+        template: '<demo-ruleForm/>'
+    });
+</script>
+</body>
+</html>

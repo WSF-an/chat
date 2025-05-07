@@ -1,0 +1,49 @@
+
+
+
+server:
+  port: 8080
+
+
+spring:
+  mvc:
+    index=login:
+      html:
+  web:
+    resources:
+      static-locations=classpath:/static/:
+  security:
+    enabled=false:
+  datasource:
+    url: jdbc:mysql://localhost:3306/chatserver
+    username: root
+    password: wsf041014
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+      show-sql: true
+  data:
+    redis:
+      database: 10
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    root: info
+    org.springframework.web: debug
+    com.yourcompany.aichat: debug
+
+# 接口文档配置 http://localhost:8080/api/doc.html#/home在线接口测试
+knife4j:
+  enable: true
+  openapi:
+    title: "接口文档"
+    version: 1.0
+    group:
+      default:
+        api-rule: package
+        api-rule-resources:
+          - org.example.chatserver.Controller
+
