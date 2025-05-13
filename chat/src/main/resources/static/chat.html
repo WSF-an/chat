@@ -7,8 +7,9 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://unpkg.com/vuex@3.6.2/dist/vuex.js"></script>
     <style>
-        /* 你原本可以用 chat.css 管样式，这里只是示例 */
-        .active-chat { background-color: #d0e6ff; }
+        .active-chat {
+            background-color: #d0e6ff;
+        }
     </style>
 </head>
 <body>
@@ -20,16 +21,18 @@
 
     <div class="new_chat_top">
         <button class="new_chat1" onclick="createNewChat()">新建聊天</button>
+
+
+        <!-- 新增：上传文件输入 -->
+        <input type="file" id="fileInput" accept=".json" class="new_chat1" style="margin-top: 10px; width: 90%;">
+
+        <!-- 上传与下载按钮 -->
         <button class="new_chat1" id="sendDataBtn" style="margin-top: 10px;">发送数据</button>
         <button class="new_chat1" id="downloadDataBtn" style="margin-top: 10px;">下载数据</button>
-        <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
     </div>
 
-    <div class="chat_list_container" id="chat_list_container">
-        <div class="new_chat new_chat_text active-chat" data-convid="会话1" onclick="switchChat(this)">
-            <div class="no-select" style="flex:8;color:#262626;">会话1</div>
-        </div>
-    </div>
+
+    <div class="chat_list_container" id="chat_list_container"></div>
 
     <div class="left_person">
         <div style="display:flex;justify-content: center;align-items:center">
@@ -37,7 +40,7 @@
                 <div class="my_img_son1"></div>
             </div>
             <div class="false_img_right">
-                <strong id="username_display">游客</strong> <!-- 默认显示游客 -->
+                <strong id="username_display">游客</strong>
             </div>
         </div>
     </div>
@@ -53,45 +56,106 @@
     </div>
 </div>
 
-<!-- 🚀 脚本移到底部！ -->
 <script>
     const userInfoStr = sessionStorage.getItem('userInfo');
-    if (userInfoStr && userInfoStr !== 'undefined') {
-        try {
-            const userInfo = JSON.parse(userInfoStr);
-            console.log('取到的 userInfo 是:', userInfo);
+    try {
+        const userInfo = JSON.parse(userInfoStr);
+        if (userInfo && userInfo.uname) {
             document.getElementById("username_display").textContent = userInfo.uname;
-        } catch (e) {
-            console.error('userInfo解析出错:', e);
-            document.getElementById("username_display").textContent = "游客";
         }
-    } else {
-        document.getElementById("username_display").textContent = "游客";
+    } catch (e) {
+        console.warn("解析 userInfo 出错，使用默认用户名");
     }
 
-        window.addEventListener('DOMContentLoaded', () => {
-        loadChatList(); // 👈 页面加载时获取会话列表
+    document.addEventListener('DOMContentLoaded', () => {
+        loadChatList();
     });
 
-        function loadChatList() {
+    function btn_icon() {
+        console.log("切换图标");
+    }
+
+    function createMessageBubble(text, isUser) {
+        const outerDiv = document.createElement('div');
+        outerDiv.style.display = 'flex';
+        outerDiv.style.justifyContent = isUser ? 'flex-end' : 'flex-start';
+
+        const messageDiv = document.createElement('div');
+        messageDiv.textContent = text;
+        messageDiv.style.backgroundColor = isUser ? '#e0f7fa' : '#f1f1f1';
+        messageDiv.style.padding = '8px';
+        messageDiv.style.borderRadius = '8px';
+        messageDiv.style.maxWidth = '70%';
+        outerDiv.appendChild(messageDiv);
+
+        return outerDiv;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        if (!message) return;
+
+        const active = document.querySelector('.active-chat');
+        if (!active) {
+            alert("请先选择一个会话");
+            return;
+        }
+
+        const conversationId = active.dataset.convid.replace('会话', '');
+
+        axios.post(`/api/chat/${conversationId}/message`, { message })
+            .then(response => {
+                const chatHistory = document.getElementById("chat_history");
+                chatHistory.appendChild(createMessageBubble(message, true));
+                chatHistory.appendChild(createMessageBubble(response.data, false));
+                input.value = '';
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            })
+            .catch(error => {
+                console.error('发送消息失败:', error);
+                alert('发送失败，请稍后重试');
+            });
+    }
+
+    function switchChat(element) {
+        const conversationId = parseInt(element.dataset.convid.replace('会话', ''));
+        document.querySelectorAll('.new_chat').forEach(el => el.classList.remove('active-chat'));
+        element.classList.add('active-chat');
+
+        axios.get(`/api/chat/${conversationId}/history`)
+            .then(response => {
+                const chatHistory = document.getElementById("chat_history");
+                chatHistory.innerHTML = '';
+                response.data.forEach(msg => {
+                    chatHistory.appendChild(createMessageBubble(msg.message, true));
+                    chatHistory.appendChild(createMessageBubble(msg.reply, false));
+                });
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            })
+            .catch(error => {
+                console.error('加载聊天记录失败:', error);
+                alert('加载失败');
+            });
+    }
+
+    function loadChatList() {
         axios.get('/api/chat/get_list')
             .then(response => {
-                const chatLists = response.data;
+                const chatList = response.data;
                 const container = document.getElementById('chat_list_container');
-                container.innerHTML = ''; // 清空已有
+                container.innerHTML = '';
 
-                if (!Array.isArray(chatLists) || chatLists.length === 0) {
+                if (!Array.isArray(chatList) || chatList.length === 0) {
                     container.innerHTML = '<div style="padding: 10px; color: gray;">暂无会话</div>';
                     return;
                 }
 
-                chatLists.forEach((chat, index) => {
-                    const chatDiv = document.createElement('div');
-                    chatDiv.className = 'new_chat new_chat_text';
-                    chatDiv.dataset.convid = `会话${chat.conversationId}`;
-                    chatDiv.onclick = function () {
-                        switchChat(this);
-                    };
+                chatList.forEach(chat => {
+                    const div = document.createElement('div');
+                    div.className = 'new_chat new_chat_text';
+                    div.dataset.convid = `会话${chat.conversationId}`;
+                    div.onclick = () => switchChat(div);
 
                     const title = document.createElement('div');
                     title.className = 'no-select';
@@ -99,244 +163,88 @@
                     title.style.color = '#262626';
                     title.textContent = chat.description || `会话${chat.conversationId}`;
 
-                    chatDiv.appendChild(title);
-                    container.appendChild(chatDiv);
+                    div.appendChild(title);
+                    container.appendChild(div);
                 });
 
-                // 可选：默认高亮第一个并加载其聊天记录
-                const firstChat = container.querySelector('.new_chat');
-                if (firstChat) {
-                    firstChat.classList.add('active-chat');
-                    switchChat(firstChat);
+                const first = container.querySelector('.new_chat');
+                if (first) {
+                    first.classList.add('active-chat');
+                    switchChat(first);
                 }
             })
             .catch(error => {
                 console.error('获取会话列表失败:', error);
-                alert('无法加载会话列表，请稍后重试');
+                alert('加载会话失败');
             });
     }
-
-
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();
-        if (!message) return; // 防止空内容
-
-        // 获取当前的会话ID（假设你已经有某种方式来追踪当前会话）
-        const conversationId = document.querySelector('.active-chat').dataset.convid.replace('会话', '');
-
-        axios.post(`/api/chat/${conversationId}/message`, {
-            message: message
-        })
-            .then(response => {
-                const reply = response.data; // 后端返回的AI回复
-
-                // 更新聊天记录
-                const chatHistory = document.getElementById("chat_history");
-
-                // 创建并显示用户消息
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.style.display = 'flex';
-                userMessageDiv.style.justifyContent = 'flex-end'; // 用户消息显示在右侧
-                const userMessage = document.createElement('div');
-                userMessage.textContent = message;
-                userMessage.style.backgroundColor = '#e0f7fa'; // 设置背景色
-                userMessage.style.padding = '8px';
-                userMessage.style.borderRadius = '8px';
-                userMessage.style.maxWidth = '70%'; // 限制最大宽度
-                userMessageDiv.appendChild(userMessage);
-                chatHistory.appendChild(userMessageDiv);
-
-                // 创建并显示AI回复
-                const aiReplyDiv = document.createElement('div');
-                aiReplyDiv.style.display = 'flex';
-                aiReplyDiv.style.justifyContent = 'flex-start'; // AI回复显示在左侧
-                const aiReply = document.createElement('div');
-                aiReply.textContent = reply;
-                aiReply.style.backgroundColor = '#f1f1f1'; // 设置背景色
-                aiReply.style.padding = '8px';
-                aiReply.style.borderRadius = '8px';
-                aiReply.style.maxWidth = '70%'; // 限制最大宽度
-                aiReplyDiv.appendChild(aiReply);
-                chatHistory.appendChild(aiReplyDiv);
-
-                // 清空输入框
-                input.value = '';
-
-                // 滚动到最底部
-                chatHistory.scrollTop = chatHistory.scrollHeight;
-            })
-            .catch(error => {
-                console.error('发送消息失败:', error);
-                alert('无法发送消息，请稍后重试');
-            });
-    }
-
-    function switchChat(clickedElement) {
-        const conversationIdStr = clickedElement.dataset.convid;
-        console.log(`切换到会话: ${conversationIdStr}`);
-
-        // 清除所有高亮
-        document.querySelectorAll('.new_chat').forEach(chat => {
-            chat.classList.remove('active-chat');
-        });
-        clickedElement.classList.add('active-chat');
-
-        // 获取会话编号
-        const conversationId = parseInt(conversationIdStr.replace('会话', ''));
-
-        // 获取聊天记录
-        axios.get(`/api/chat/${conversationId}/history`)
-            .then(response => {
-                const history = response.data;
-                const chatHistoryDiv = document.getElementById('chat_history');
-                chatHistoryDiv.innerHTML = ''; // 清空旧消息
-
-                history.forEach((msg, index) => {
-                    // 创建消息容器
-                    const msgDiv = document.createElement('div');
-                    msgDiv.style.marginBottom = '8px';
-                    msgDiv.style.padding = '6px';
-                    msgDiv.style.borderRadius = '8px';
-                    msgDiv.style.backgroundColor = '#f0f0f0';
-                    msgDiv.style.display = 'flex';
-                    msgDiv.style.flexDirection = 'column'; // 设置为竖直布局
-
-                    // 创建消息内容容器
-                    const userMessageDiv = document.createElement('div');
-                    userMessageDiv.style.display = 'flex';
-                    userMessageDiv.style.justifyContent = 'flex-end'; // 让提问显示在右侧
-                    const userMessage = document.createElement('div');
-                    userMessage.textContent = msg.message;
-                    userMessage.style.backgroundColor = '#e0f7fa'; // 设置背景色
-                    userMessage.style.padding = '8px';
-                    userMessage.style.borderRadius = '8px';
-                    userMessage.style.maxWidth = '70%'; // 限制最大宽度
-                    userMessageDiv.appendChild(userMessage);
-
-                    const aiReplyDiv = document.createElement('div');
-                    aiReplyDiv.style.display = 'flex';
-                    aiReplyDiv.style.justifyContent = 'flex-start'; // 让回答显示在左侧
-                    const aiReply = document.createElement('div');
-                    aiReply.textContent = msg.reply;
-                    aiReply.style.backgroundColor = '#f1f1f1'; // 设置回答背景色
-                    aiReply.style.padding = '8px';
-                    aiReply.style.borderRadius = '8px';
-                    aiReply.style.maxWidth = '70%'; // 限制最大宽度
-                    aiReplyDiv.appendChild(aiReply);
-
-                    // 将提问和回答都添加到消息容器
-                    msgDiv.appendChild(userMessageDiv);
-                    msgDiv.appendChild(aiReplyDiv);
-
-                    // 将消息添加到聊天历史
-                    chatHistoryDiv.appendChild(msgDiv);
-                });
-
-                // 滚动到底部
-                chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
-            })
-            .catch(error => {
-                console.error('获取聊天记录失败:', error);
-                alert('无法加载聊天记录，请稍后重试');
-            });
-    }
-
 
     function createNewChat() {
         axios.get('/api/chat/get_list')
             .then(response => {
-                const chatLists = response.data;
-
-                // 提取已有 conversationId 的数字
-                const existingIds = new Set(chatLists.map(chat => parseInt(chat.conversationId)));
-
-                // 生成不重复的 conversationId
+                const existing = new Set(response.data.map(chat => parseInt(chat.conversationId)));
                 let newId = 1;
-                while (existingIds.has(newId)) {
-                    newId++;
-                }
+                while (existing.has(newId)) newId++;
 
                 const newChatName = `会话${newId}`;
-
-                // 调用后端接口添加新会话
                 axios.post('/api/chat/add_list', {
                     conversationId: newId,
                     description: newChatName
-                }, {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }).then(response => {
-                    console.log("新建聊天已发送到后端");
-
-                    // 创建并添加前端会话 DOM
-                    const container = document.getElementById('chat_list_container');
-                    const newChat = document.createElement('div');
-                    newChat.className = 'new_chat new_chat_text';
-                    newChat.dataset.convid = newChatName;
-                    newChat.onclick = function() { switchChat(this); };
-
-                    const title = document.createElement('div');
-                    title.className = 'no-select';
-                    title.style.flex = '8';
-                    title.style.color = '#262626';
-                    title.textContent = newChatName;
-
-                    newChat.appendChild(title);
-                    container.appendChild(newChat);
-                }).catch(error => {
-                    console.error("新建聊天失败:", error);
-                    alert("创建新聊天失败，请稍后重试");
+                }).then(() => {
+                    loadChatList();
+                }).catch(err => {
+                    console.error("创建聊天失败:", err);
+                    alert("创建聊天失败");
                 });
-            })
-            .catch(error => {
-                console.error('获取已有会话列表失败:', error);
-                alert('无法创建新会话，请稍后重试');
             });
     }
 
-
-    function btn_icon() {
-        console.log("切换图标");
-    }
-    document.getElementById('downloadDataBtn').addEventListener('click', downloadData);
-
-    function downloadData() {
+    document.getElementById('downloadDataBtn').addEventListener('click', () => {
         axios({
-            url: '/api/chat/download', // 修改为你的接口路径
+            url: '/api/chat/download',
             method: 'GET',
-            responseType: 'blob' // 重要：告诉 axios 返回的是二进制数据
+            responseType: 'blob'
+        }).then(response => {
+            const blob = new Blob([response.data], { type: 'application/zip' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'handler.zip';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }).catch(error => {
+            console.error('下载失败：', error);
+            alert('下载失败，请稍后再试');
+        });
+    });
+
+    document.getElementById('sendDataBtn').addEventListener('click', () => {
+        const fileInput = document.getElementById('fileInput');
+
+        if (fileInput.files.length === 0) {
+            alert('请先选择文件');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('server_name', 'default_server');  // 后端会忽略它，这里只是避免出错
+
+        axios.post('/api/chat/send-to-python', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         })
             .then(response => {
-                const blob = new Blob([response.data], { type: 'application/zip' }); // 可根据文件类型修改
-                const link = document.createElement('a');
-                link.href = window.URL.createObjectURL(blob);
-                link.download = 'handler.zip'; // 指定下载的文件名
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(link.href); // 释放 blob 对象
-            })
-            .catch(error => {
-                console.error('下载失败：', error);
-                alert('下载失败，请稍后再试');
-            });
-    }
-    document.getElementById('sendDataBtn').addEventListener('click', sendData);
-
-    function sendData() {
-        axios.post('/api/chat/send-to-python', null) // 如果你要传数据，可以放在第二个参数中
-            .then(response => {
                 alert('发送成功！');
-                console.log('发送数据成功:', response.data);
+                console.log('发送成功:', response.data);
             })
             .catch(error => {
-                console.error('发送数据失败:', error);
-                alert('发送失败，请稍后重试');
+                console.error('发送失败:', error);
+                alert('发送失败');
             });
-    }
-
+    });
 
 </script>
 

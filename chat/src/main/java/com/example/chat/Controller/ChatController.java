@@ -14,11 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 @RestController
@@ -158,33 +161,34 @@ public class ChatController {
         os.flush();
         os.close();
     }
-
     @PostMapping("/chat/send-to-python")
-    public ResponseEntity<String> sendToPython() {
-        String filePath = "file/data.sample.jsonl";        // 相对路径或构造出的路径
-        String serverName = "server_001";            // 你要传的标识
-
-        // 构造 JSON 请求体
-        Map<String, String> requestBody = new HashMap<>();
-        requestBody.put("file_path", filePath);
-        requestBody.put("server_name", serverName);
-
-        // 设置 HTTP 请求头
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
-
-        // 调用 Python 接口
-        String pythonUrl = "http://localhost:5000/serve";  // Python Flask 监听地址
-        RestTemplate restTemplate = new RestTemplate();
-
+    public ResponseEntity<String> sendToPython(@RequestParam("file") MultipartFile file) {
         try {
+            // 临时保存文件
+            Path tempPath = Paths.get(System.getProperty("java.io.tmpdir"), file.getOriginalFilename());
+            file.transferTo(tempPath.toFile());
+
+            // 构造 JSON 请求体
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("file_path", tempPath.toString());
+            requestBody.put("server_name", "default_server"); // 写死
+
+            // 设置 HTTP 请求头
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
+
+            // 调用 Python 接口
+            String pythonUrl = "http://localhost:5000/serve";
+            RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> response = restTemplate.postForEntity(pythonUrl, request, String.class);
+
             return ResponseEntity.ok("Python返回：" + response.getBody());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("调用失败：" + e.getMessage());
         }
     }
+
 
 
 
